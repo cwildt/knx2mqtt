@@ -13,6 +13,7 @@ import paho.mqtt.client as mqtt
 
 from xknx import XKNX
 from xknx.dpt.dpt import DPTArray, DPTBinary
+from xknx.dpt.dpt_color import DPTColorRGB, RGBColor
 from xknx.io.knxip_interface import ConnectionType, ConnectionConfig
 from xknx.telegram.address import GroupAddress, IndividualAddress
 from xknx.telegram.apci import GroupValueWrite
@@ -54,6 +55,9 @@ def extract_payload_from_telegram(group_address, telegram):
     try:
         if dpt_type == 'DPTBinary':
             value = str(bool(payload.value.value)).lower()
+        elif dpt_type == 'DPTColorRGB':
+            dpt_class = getattr(importlib.import_module(XKNX_DPT_MODULE_STR), dpt_type)
+            value = str(dpt_class.from_knx(payload.value))
         else:
             if dpt_type is None:
                 dpt_type = payload.value.__class__.__name__
@@ -75,6 +79,11 @@ def create_payload_for_telegram(group_address, value):
     try:
         if dpt_type == 'DPTBinary':
             payload = DPTBinary(int(str(value).lower() in ['true', '1', 'on', 'yes']))
+        elif dpt_type == 'DPTColorRGB':
+            dpt_class = getattr(importlib.import_module(XKNX_DPT_MODULE_STR), dpt_type)
+            rgb_string = value.translate( { ord(i): None for i in '() '} )
+            rgb = tuple(map(int, rgb_string.split(',')))
+            payload = dpt_class.to_knx(rgb)
         else:
             dpt_class = getattr(importlib.import_module(XKNX_DPT_MODULE_STR), dpt_type)
             payload = DPTArray(dpt_class.to_knx(value))
